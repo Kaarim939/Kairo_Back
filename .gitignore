@@ -1,6 +1,6 @@
 __pycache__/
 *.pyc
 .env
-firebase-credentials.json
+kairo-firebase-credentials.json
 venv/
 .venv/
