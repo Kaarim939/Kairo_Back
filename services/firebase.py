@@ -1,5 +1,6 @@
 import os
 import json
+import base64
 import firebase_admin
 from firebase_admin import credentials, firestore
 from dotenv import load_dotenv
@@ -16,15 +17,22 @@ def get_db() -> firestore.Client:
         if os.path.exists(cred_path):
             cred = credentials.Certificate(cred_path)
         else:
-            # Try loading from env var as JSON string
-            cred_json = os.getenv("FIREBASE_CREDENTIALS_JSON")
-            if cred_json:
-                cred = credentials.Certificate(json.loads(cred_json))
+            # Try base64-encoded credentials (safest for deployment)
+            cred_b64 = os.getenv("FIREBASE_CREDENTIALS_BASE64")
+            if cred_b64:
+                cred_dict = json.loads(base64.b64decode(cred_b64))
+                cred = credentials.Certificate(cred_dict)
             else:
-                raise RuntimeError(
-                    "No Firebase credentials found. "
-                    "Set FIREBASE_CREDENTIALS path or FIREBASE_CREDENTIALS_JSON env var."
-                )
+                # Try raw JSON string
+                cred_json = os.getenv("FIREBASE_CREDENTIALS_JSON")
+                if cred_json:
+                    cred = credentials.Certificate(json.loads(cred_json))
+                else:
+                    raise RuntimeError(
+                        "No Firebase credentials found. "
+                        "Set FIREBASE_CREDENTIALS, FIREBASE_CREDENTIALS_BASE64, "
+                        "or FIREBASE_CREDENTIALS_JSON env var."
+                    )
         firebase_admin.initialize_app(cred)
         _db = firestore.client()
     return _db

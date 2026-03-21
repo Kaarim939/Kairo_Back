@@ -35,3 +35,8 @@ app.include_router(imports.router, prefix="/api")
 @app.get("/")
 def root():
     return {"name": "Kairo API", "version": "0.1.0"}
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
