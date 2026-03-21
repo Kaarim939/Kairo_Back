@@ -1,0 +1,31 @@
+from fastapi import APIRouter, HTTPException
+from models.schemas import UpdateBook
+from services.firebase import get_all_books, get_book, update_book
+
+router = APIRouter(prefix="/books", tags=["books"])
+
+
+@router.get("")
+def list_books():
+    """List all books with chapter metadata (no pages)."""
+    return get_all_books()
+
+
+@router.get("/{book_id}")
+def read_book(book_id: str):
+    """Get a single book with chapter metadata."""
+    book = get_book(book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+    return book
+
+
+@router.patch("/{book_id}")
+def patch_book(book_id: str, data: UpdateBook):
+    """Update book metadata (title, author, description)."""
+    update_data = data.model_dump(exclude_none=True)
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    if not update_book(book_id, update_data):
+        raise HTTPException(status_code=404, detail="Book not found")
+    return {"ok": True}

@@ -1,0 +1,234 @@
+import os
+import json
+import firebase_admin
+from firebase_admin import credentials, firestore
+from dotenv import load_dotenv
+
+load_dotenv()
+
+_db = None
+
+
+def get_db() -> firestore.Client:
+    global _db
+    if _db is None:
+        cred_path = os.getenv("FIREBASE_CREDENTIALS", "firebase-credentials.json")
+        if os.path.exists(cred_path):
+            cred = credentials.Certificate(cred_path)
+        else:
+            # Try loading from env var as JSON string
+            cred_json = os.getenv("FIREBASE_CREDENTIALS_JSON")
+            if cred_json:
+                cred = credentials.Certificate(json.loads(cred_json))
+            else:
+                raise RuntimeError(
+                    "No Firebase credentials found. "
+                    "Set FIREBASE_CREDENTIALS path or FIREBASE_CREDENTIALS_JSON env var."
+                )
+        firebase_admin.initialize_app(cred)
+        _db = firestore.client()
+    return _db
+
+
+# --- Firestore structure ---
+# books/{bookId}              → { title, author, description }
+# books/{bookId}/chapters/{chapterId} → { title, free, pageWidth, pageHeight, fontSize, font, availableLanguages }
+# books/{bookId}/chapters/{chapterId}/pages/{pageId} → { pageNumber, imageUrl, width?, height?, panels: [...] }
+
+
+def get_all_books() -> list[dict]:
+    db = get_db()
+    books = []
+    for doc in db.collection("books").stream():
+        book = doc.to_dict()
+        book["id"] = doc.id
+
+        # Get chapters metadata
+        chapters = []
+        for ch_doc in db.collection("books").document(doc.id).collection("chapters").stream():
+            ch = ch_doc.to_dict()
+            ch["id"] = int(ch_doc.id)
+            # Count pages
+            pages_ref = (
+                db.collection("books")
+                .document(doc.id)
+                .collection("chapters")
+                .document(ch_doc.id)
+                .collection("pages")
+            )
+            ch["pageCount"] = len(list(pages_ref.stream()))
+            chapters.append(ch)
+
+        chapters.sort(key=lambda c: c["id"])
+        book["chapters"] = chapters
+
+        # Cover = first page of first chapter
+        if chapters:
+            first_ch = chapters[0]
+            pages_ref = (
+                db.collection("books")
+                .document(doc.id)
+                .collection("chapters")
+                .document(str(first_ch["id"]))
+                .collection("pages")
+            )
+            first_page = None
+            for p in pages_ref.order_by("pageNumber").limit(1).stream():
+                first_page = p.to_dict()
+            book["cover"] = first_page["imageUrl"] if first_page else ""
+        else:
+            book["cover"] = ""
+
+        books.append(book)
+    return books
+
+
+def get_book(book_id: str) -> dict | None:
+    db = get_db()
+    doc = db.collection("books").document(book_id).get()
+    if not doc.exists:
+        return None
+    book = doc.to_dict()
+    book["id"] = doc.id
+
+    chapters = []
+    for ch_doc in db.collection("books").document(book_id).collection("chapters").stream():
+        ch = ch_doc.to_dict()
+        ch["id"] = int(ch_doc.id)
+        pages_ref = (
+            db.collection("books")
+            .document(book_id)
+            .collection("chapters")
+            .document(ch_doc.id)
+            .collection("pages")
+        )
+        ch["pageCount"] = len(list(pages_ref.stream()))
+        chapters.append(ch)
+
+    chapters.sort(key=lambda c: c["id"])
+    book["chapters"] = chapters
+
+    if chapters:
+        first_ch = chapters[0]
+        pages_ref = (
+            db.collection("books")
+            .document(book_id)
+            .collection("chapters")
+            .document(str(first_ch["id"]))
+            .collection("pages")
+        )
+        first_page = None
+        for p in pages_ref.order_by("pageNumber").limit(1).stream():
+            first_page = p.to_dict()
+        book["cover"] = first_page["imageUrl"] if first_page else ""
+    else:
+        book["cover"] = ""
+
+    return book
+
+
+def get_chapter_pages(book_id: str, chapter_id: int) -> list[dict] | None:
+    db = get_db()
+    ch_ref = (
+        db.collection("books")
+        .document(book_id)
+        .collection("chapters")
+        .document(str(chapter_id))
+    )
+    if not ch_ref.get().exists:
+        return None
+
+    pages = []
+    for p_doc in ch_ref.collection("pages").order_by("pageNumber").stream():
+        page = p_doc.to_dict()
+        page["id"] = p_doc.id
+        pages.append(page)
+    return pages
+
+
+def get_chapter_meta(book_id: str, chapter_id: int) -> dict | None:
+    db = get_db()
+    doc = (
+        db.collection("books")
+        .document(book_id)
+        .collection("chapters")
+        .document(str(chapter_id))
+        .get()
+    )
+    if not doc.exists:
+        return None
+    ch = doc.to_dict()
+    ch["id"] = int(doc.id)
+    return ch
+
+
+def update_book(book_id: str, data: dict) -> bool:
+    db = get_db()
+    ref = db.collection("books").document(book_id)
+    if not ref.get().exists:
+        return False
+    ref.update(data)
+    return True
+
+
+def update_chapter_meta(book_id: str, chapter_id: int, data: dict) -> bool:
+    db = get_db()
+    ref = (
+        db.collection("books")
+        .document(book_id)
+        .collection("chapters")
+        .document(str(chapter_id))
+    )
+    if not ref.get().exists:
+        return False
+    ref.update(data)
+    return True
+
+
+def update_page(book_id: str, chapter_id: int, page_id: str, data: dict) -> bool:
+    db = get_db()
+    ref = (
+        db.collection("books")
+        .document(book_id)
+        .collection("chapters")
+        .document(str(chapter_id))
+        .collection("pages")
+        .document(page_id)
+    )
+    if not ref.get().exists:
+        return False
+    ref.update(data)
+    return True
+
+
+def import_book_json(book_data: dict) -> str:
+    """Import a full book from JSON (with chapters and pages)."""
+    db = get_db()
+    book_id = book_data["id"]
+
+    # Write book metadata
+    book_meta = {
+        k: v for k, v in book_data.items() if k not in ("id", "chapters")
+    }
+    db.collection("books").document(book_id).set(book_meta)
+
+    # Write chapters and pages
+    for chapter in book_data.get("chapters", []):
+        ch_id = str(chapter["id"])
+        ch_meta = {
+            k: v for k, v in chapter.items() if k not in ("id", "pages")
+        }
+        ch_ref = (
+            db.collection("books")
+            .document(book_id)
+            .collection("chapters")
+            .document(ch_id)
+        )
+        ch_ref.set(ch_meta)
+
+        for page in chapter.get("pages", []):
+            page_id = page["id"]
+            page_data = {k: v for k, v in page.items() if k != "id"}
+            ch_ref.collection("pages").document(page_id).set(page_data)
+
+    return book_id
