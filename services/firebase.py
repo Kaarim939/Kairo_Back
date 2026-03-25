@@ -331,10 +331,18 @@ def create_page(book_id: str, chapter_id: int, image_url: str) -> dict | None:
     existing = list(ch_ref.collection("pages").stream())
     next_num = max((p.to_dict().get("pageNumber", 0) for p in existing), default=0) + 1
     page_id = str(uuid.uuid4())[:8]
+    default_panel = {
+        "id": str(uuid.uuid4())[:8],
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1,
+        "texts": [],
+    }
     page_data = {
         "pageNumber": next_num,
         "imageUrl": image_url,
-        "panels": [],
+        "panels": [default_panel],
     }
     ch_ref.collection("pages").document(page_id).set(page_data)
     return {**page_data, "id": page_id}
