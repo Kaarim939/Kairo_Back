@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from models.schemas import CreateChapter, UpdateChapterMeta
 from services.firebase import (
     create_chapter,
+    delete_chapter,
     get_chapter_meta,
     get_chapter_pages,
     update_chapter_meta,
@@ -38,3 +39,12 @@ def patch_chapter(book_id: str, chapter_id: int, data: UpdateChapterMeta):
     if not update_chapter_meta(book_id, chapter_id, update_data):
         raise HTTPException(status_code=404, detail="Chapter not found")
     return {"ok": True}
+
+
+@router.delete("/{chapter_id}")
+def remove_chapter(book_id: str, chapter_id: int):
+    """Delete a chapter (only if it has 0 pages)."""
+    result = delete_chapter(book_id, chapter_id)
+    if result is True:
+        return {"ok": True}
+    raise HTTPException(status_code=400 if "pages" in result else 404, detail=result)

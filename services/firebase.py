@@ -234,6 +234,24 @@ def update_page(book_id: str, chapter_id: int, page_id: str, data: dict) -> bool
     return True
 
 
+def delete_chapter(book_id: str, chapter_id: int) -> bool | str:
+    """Delete a chapter only if it has 0 pages. Returns True on success, error string on failure."""
+    db = get_db()
+    ch_ref = (
+        db.collection("books")
+        .document(book_id)
+        .collection("chapters")
+        .document(str(chapter_id))
+    )
+    if not ch_ref.get().exists:
+        return "Chapter not found"
+    pages = list(ch_ref.collection("pages").limit(1).stream())
+    if pages:
+        return "Cannot delete a chapter that has pages"
+    ch_ref.delete()
+    return True
+
+
 def create_chapter(book_id: str, data: dict) -> int | None:
     """Create a new empty chapter. Returns the new chapter id."""
     db = get_db()
