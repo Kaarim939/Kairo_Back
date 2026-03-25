@@ -365,13 +365,23 @@ def delete_page(book_id: str, chapter_id: int, page_id: str) -> bool | str:
     page = doc.to_dict()
     panels = page.get("panels", [])
     if panels and len(panels) > 0:
-        # Check if any panel has texts
-        has_content = any(
-            p.get("texts") and len(p.get("texts", [])) > 0
-            for p in panels
+        # Allow deletion if the only panel is the default full-page panel with no texts
+        is_default = (
+            len(panels) == 1
+            and panels[0].get("x", 0) == 0
+            and panels[0].get("y", 0) == 0
+            and panels[0].get("width", 0) == 1
+            and panels[0].get("height", 0) == 1
+            and not panels[0].get("texts")
         )
-        if has_content or len(panels) > 0:
-            return "Cannot delete a page that has panels"
+        if not is_default:
+            has_texts = any(
+                p.get("texts") and len(p.get("texts", [])) > 0
+                for p in panels
+            )
+            if has_texts:
+                return "Cannot delete a page that has texts"
+            return "Cannot delete a page that has custom panels"
     ref.delete()
     return True
 
