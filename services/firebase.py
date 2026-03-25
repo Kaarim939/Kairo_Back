@@ -45,6 +45,28 @@ def get_db() -> firestore.Client:
 # books/{bookId}/chapters/{chapterId}/pages/{pageId} → { pageNumber, imageUrl, width?, height?, panels: [...] }
 
 
+def _to_localized(val) -> dict:
+    """Convert a string or dict to a localized {en, fr, es} object."""
+    if isinstance(val, dict):
+        return {lang: val.get(lang, "") for lang in ("en", "fr", "es")}
+    if isinstance(val, str):
+        return {"en": val, "fr": "", "es": ""}
+    return {"en": "", "fr": "", "es": ""}
+
+
+def _normalize_book(book: dict) -> dict:
+    """Ensure book has localized title/description."""
+    book["title"] = _to_localized(book.get("title", ""))
+    book["description"] = _to_localized(book.get("description", ""))
+    return book
+
+
+def _normalize_chapter(ch: dict) -> dict:
+    """Ensure chapter has localized name."""
+    ch["name"] = _to_localized(ch.get("name", ch.get("title", "")))
+    return ch
+
+
 def get_all_books() -> list[dict]:
     db = get_db()
     books = []
@@ -53,12 +75,14 @@ def get_all_books() -> list[dict]:
         book["id"] = doc.id
         book.setdefault("visible", True)
         book.setdefault("order", 0)
+        _normalize_book(book)
 
         # Get chapters metadata
         chapters = []
         for ch_doc in db.collection("books").document(doc.id).collection("chapters").stream():
             ch = ch_doc.to_dict()
             ch["id"] = int(ch_doc.id)
+            _normalize_chapter(ch)
             # Count pages
             pages_ref = (
                 db.collection("books")
@@ -104,11 +128,13 @@ def get_book(book_id: str) -> dict | None:
     book["id"] = doc.id
     book.setdefault("visible", True)
     book.setdefault("order", 0)
+    _normalize_book(book)
 
     chapters = []
     for ch_doc in db.collection("books").document(book_id).collection("chapters").stream():
         ch = ch_doc.to_dict()
         ch["id"] = int(ch_doc.id)
+        _normalize_chapter(ch)
         pages_ref = (
             db.collection("books")
             .document(book_id)
@@ -174,6 +200,7 @@ def get_chapter_meta(book_id: str, chapter_id: int) -> dict | None:
         return None
     ch = doc.to_dict()
     ch["id"] = int(doc.id)
+    _normalize_chapter(ch)
     return ch
 
 
@@ -186,9 +213,9 @@ def create_book(book_id: str, data: dict) -> bool:
     # Count existing books for default order
     existing_count = len(list(db.collection("books").stream()))
     ref.set({
-        "title": data.get("title", "New Book"),
+        "title": data.get("title", {"en": "New Book", "fr": "", "es": ""}),
         "author": "Unknown",
-        "description": "",
+        "description": {"en": "", "fr": "", "es": ""},
         "visible": True,
         "order": existing_count,
     })
@@ -263,7 +290,7 @@ def create_chapter(book_id: str, data: dict) -> int | None:
     next_id = max((int(doc.id) for doc in existing), default=0) + 1
     ch_data = {
         "number": data.get("number", float(next_id)),
-        "name": data.get("name", ""),
+        "name": data.get("name", {"en": "", "fr": "", "es": ""}),
         "free": data.get("free", False),
         "pageWidth": data.get("pageWidth", 800),
         "pageHeight": data.get("pageHeight", 1200),

@@ -10,6 +10,12 @@ ALLOWED_ALIGNS = ["left", "center", "right"]
 
 ALLOWED_LANGUAGES = ["en", "fr", "es", "ja"]
 
+UI_LANGUAGES = ["en", "fr", "es"]
+
+
+# Multilingual string: {en: "...", fr: "...", es: "..."}
+LocalizedStr = dict[str, str]
+
 
 class TextLangEntry(BaseModel):
     text: str = Field(max_length=2000)
@@ -81,7 +87,7 @@ class Page(BaseModel):
 class Chapter(BaseModel):
     id: int
     number: float = Field(gt=0)
-    name: str = Field(max_length=200)
+    name: LocalizedStr
     free: bool
     pageWidth: float = Field(gt=0)
     pageHeight: float = Field(gt=0)
@@ -103,7 +109,7 @@ class ChapterMeta(BaseModel):
     """Chapter without pages — for book listing."""
     id: int
     number: float
-    name: str
+    name: LocalizedStr
     free: bool
     pageWidth: float
     pageHeight: float
@@ -115,18 +121,18 @@ class ChapterMeta(BaseModel):
 
 class Book(BaseModel):
     id: str = Field(max_length=100, pattern=r'^[a-z0-9-]+$')
-    title: str = Field(max_length=200)
+    title: LocalizedStr
     author: str = Field(max_length=200)
-    description: str = Field(max_length=5000)
+    description: LocalizedStr
     chapters: list[Chapter]
 
 
 class BookSummary(BaseModel):
     """Book without full chapter data — for listing."""
     id: str
-    title: str
+    title: LocalizedStr
     author: str
-    description: str
+    description: LocalizedStr
     cover: str
     visible: bool = True
     order: int = 0
@@ -145,7 +151,7 @@ class UpdatePage(BaseModel):
 class UpdateChapterMeta(BaseModel):
     """Update chapter metadata (not pages)."""
     number: Optional[float] = Field(default=None, gt=0)
-    name: Optional[str] = Field(default=None, max_length=200)
+    name: Optional[LocalizedStr] = None
     free: Optional[bool] = None
     pageWidth: Optional[float] = Field(default=None, gt=0)
     pageHeight: Optional[float] = Field(default=None, gt=0)
@@ -166,20 +172,20 @@ class UpdateChapterMeta(BaseModel):
 class CreateChapter(BaseModel):
     """Create a new empty chapter."""
     number: float = Field(gt=0)
-    name: str = Field(max_length=200)
+    name: LocalizedStr
     free: bool = False
 
 
 class CreateBook(BaseModel):
     """Create a new book with placeholder data."""
     id: str = Field(max_length=100, pattern=r'^[a-z0-9-]+$')
-    title: str = Field(max_length=200)
+    title: LocalizedStr
 
 
 class UpdateBook(BaseModel):
     """Update book metadata."""
-    title: Optional[str] = Field(default=None, max_length=200)
+    title: Optional[LocalizedStr] = None
     author: Optional[str] = Field(default=None, max_length=200)
-    description: Optional[str] = Field(default=None, max_length=5000)
+    description: Optional[LocalizedStr] = None
     visible: Optional[bool] = None
     order: Optional[int] = None
