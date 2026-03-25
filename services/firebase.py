@@ -2,7 +2,7 @@ import os
 import json
 import base64
 import firebase_admin
-from firebase_admin import credentials, firestore
+from firebase_admin import credentials, firestore, storage
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -33,7 +33,8 @@ def get_db() -> firestore.Client:
                         "Set FIREBASE_CREDENTIALS, FIREBASE_CREDENTIALS_BASE64, "
                         "or FIREBASE_CREDENTIALS_JSON env var."
                     )
-        firebase_admin.initialize_app(cred)
+        bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET", "kairo-reader.firebasestorage.app")
+        firebase_admin.initialize_app(cred, {"storageBucket": bucket_name})
         _db = firestore.client()
     return _db
 
@@ -70,22 +71,23 @@ def get_all_books() -> list[dict]:
         chapters.sort(key=lambda c: c["id"])
         book["chapters"] = chapters
 
-        # Cover = first page of first chapter
-        if chapters:
-            first_ch = chapters[0]
-            pages_ref = (
-                db.collection("books")
-                .document(doc.id)
-                .collection("chapters")
-                .document(str(first_ch["id"]))
-                .collection("pages")
-            )
-            first_page = None
-            for p in pages_ref.order_by("pageNumber").limit(1).stream():
-                first_page = p.to_dict()
-            book["cover"] = first_page["imageUrl"] if first_page else ""
-        else:
-            book["cover"] = ""
+        # Cover: use stored cover, fallback to first page of first chapter
+        if not book.get("cover"):
+            if chapters:
+                first_ch = chapters[0]
+                pages_ref = (
+                    db.collection("books")
+                    .document(doc.id)
+                    .collection("chapters")
+                    .document(str(first_ch["id"]))
+                    .collection("pages")
+                )
+                first_page = None
+                for p in pages_ref.order_by("pageNumber").limit(1).stream():
+                    first_page = p.to_dict()
+                book["cover"] = first_page["imageUrl"] if first_page else ""
+            else:
+                book["cover"] = ""
 
         books.append(book)
     return books
@@ -116,21 +118,22 @@ def get_book(book_id: str) -> dict | None:
     chapters.sort(key=lambda c: c["id"])
     book["chapters"] = chapters
 
-    if chapters:
-        first_ch = chapters[0]
-        pages_ref = (
-            db.collection("books")
-            .document(book_id)
-            .collection("chapters")
-            .document(str(first_ch["id"]))
-            .collection("pages")
-        )
-        first_page = None
-        for p in pages_ref.order_by("pageNumber").limit(1).stream():
-            first_page = p.to_dict()
-        book["cover"] = first_page["imageUrl"] if first_page else ""
-    else:
-        book["cover"] = ""
+    if not book.get("cover"):
+        if chapters:
+            first_ch = chapters[0]
+            pages_ref = (
+                db.collection("books")
+                .document(book_id)
+                .collection("chapters")
+                .document(str(first_ch["id"]))
+                .collection("pages")
+            )
+            first_page = None
+            for p in pages_ref.order_by("pageNumber").limit(1).stream():
+                first_page = p.to_dict()
+            book["cover"] = first_page["imageUrl"] if first_page else ""
+        else:
+            book["cover"] = ""
 
     return book
 
@@ -207,6 +210,19 @@ def update_page(book_id: str, chapter_id: int, page_id: str, data: dict) -> bool
         return False
     ref.update(data)
     return True
+
+
+def upload_cover(book_id: str, file_bytes: bytes, content_type: str) -> str:
+    """Upload a cover image to Firebase Storage and update the book's cover field."""
+    bucket = storage.bucket()
+    blob = bucket.blob(f"mangas/{book_id}/cover")
+    blob.upload_from_string(file_bytes, content_type=content_type)
+    blob.make_public()
+    url = blob.public_url
+    # Save cover URL in Firestore
+    db = get_db()
+    db.collection("books").document(book_id).update({"cover": url})
+    return url
 
 
 def import_book_json(book_data: dict) -> str:

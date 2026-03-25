@@ -1,6 +1,6 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from models.schemas import UpdateBook
-from services.firebase import get_all_books, get_book, update_book
+from services.firebase import get_all_books, get_book, update_book, upload_cover
 
 router = APIRouter(prefix="/books", tags=["books"])
 
@@ -29,3 +29,15 @@ def patch_book(book_id: str, data: UpdateBook):
     if not update_book(book_id, update_data):
         raise HTTPException(status_code=404, detail="Book not found")
     return {"ok": True}
+
+
+@router.post("/{book_id}/cover")
+async def upload_book_cover(book_id: str, file: UploadFile = File(...)):
+    """Upload a new cover image for a book."""
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+    contents = await file.read()
+    if len(contents) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large (max 10MB)")
+    url = upload_cover(book_id, contents, file.content_type)
+    return {"ok": True, "cover": url}
