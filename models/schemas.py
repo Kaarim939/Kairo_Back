@@ -182,6 +182,10 @@ class CreateBook(BaseModel):
     title: LocalizedStr
 
 
+class ReorderPages(BaseModel):
+    pages: list[dict]
+
+
 class UpdateBook(BaseModel):
     """Update book metadata."""
     title: Optional[LocalizedStr] = None

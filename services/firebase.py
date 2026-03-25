@@ -1,6 +1,7 @@
 import os
 import json
 import base64
+import uuid
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
 from dotenv import load_dotenv
@@ -313,6 +314,87 @@ def upload_cover(book_id: str, file_bytes: bytes, content_type: str) -> str:
     url = blob.public_url
     db.collection("books").document(book_id).update({"cover": url})
     return url
+
+
+def create_page(book_id: str, chapter_id: int, image_url: str) -> dict | None:
+    """Create a new page in a chapter. Returns the created page dict."""
+    db = get_db()
+    ch_ref = (
+        db.collection("books")
+        .document(book_id)
+        .collection("chapters")
+        .document(str(chapter_id))
+    )
+    if not ch_ref.get().exists:
+        return None
+    # Find next page number
+    existing = list(ch_ref.collection("pages").stream())
+    next_num = max((p.to_dict().get("pageNumber", 0) for p in existing), default=0) + 1
+    page_id = str(uuid.uuid4())[:8]
+    page_data = {
+        "pageNumber": next_num,
+        "imageUrl": image_url,
+        "panels": [],
+    }
+    ch_ref.collection("pages").document(page_id).set(page_data)
+    return {**page_data, "id": page_id}
+
+
+def delete_page(book_id: str, chapter_id: int, page_id: str) -> bool | str:
+    """Delete a page only if it has no panels with texts."""
+    db = get_db()
+    ref = (
+        db.collection("books")
+        .document(book_id)
+        .collection("chapters")
+        .document(str(chapter_id))
+        .collection("pages")
+        .document(page_id)
+    )
+    doc = ref.get()
+    if not doc.exists:
+        return "Page not found"
+    page = doc.to_dict()
+    panels = page.get("panels", [])
+    if panels and len(panels) > 0:
+        # Check if any panel has texts
+        has_content = any(
+            p.get("texts") and len(p.get("texts", [])) > 0
+            for p in panels
+        )
+        if has_content or len(panels) > 0:
+            return "Cannot delete a page that has panels"
+    ref.delete()
+    return True
+
+
+def reorder_pages(book_id: str, chapter_id: int, page_orders: list[dict]) -> bool:
+    """Update pageNumber for multiple pages. page_orders = [{"id": "xxx", "pageNumber": 1}, ...]"""
+    db = get_db()
+    ch_ref = (
+        db.collection("books")
+        .document(book_id)
+        .collection("chapters")
+        .document(str(chapter_id))
+    )
+    if not ch_ref.get().exists:
+        return False
+    for po in page_orders:
+        ch_ref.collection("pages").document(po["id"]).update({"pageNumber": po["pageNumber"]})
+    return True
+
+
+def upload_page_image(book_id: str, chapter_id: int, file_bytes: bytes, content_type: str) -> str:
+    """Upload a page image to Firebase Storage and return the public URL."""
+    import uuid as _uuid
+    db = get_db()  # ensure initialized
+    bucket = storage.bucket()
+    ext = content_type.split("/")[-1] if "/" in content_type else "png"
+    filename = f"{_uuid.uuid4().hex[:12]}.{ext}"
+    blob = bucket.blob(f"mangas/{book_id}/{chapter_id}/{filename}")
+    blob.upload_from_string(file_bytes, content_type=content_type)
+    blob.make_public()
+    return blob.public_url
 
 
 def import_book_json(book_data: dict) -> str:
