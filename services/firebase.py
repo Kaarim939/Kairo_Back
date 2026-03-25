@@ -102,6 +102,8 @@ def get_book(book_id: str) -> dict | None:
         return None
     book = doc.to_dict()
     book["id"] = doc.id
+    book.setdefault("visible", True)
+    book.setdefault("order", 0)
 
     chapters = []
     for ch_doc in db.collection("books").document(book_id).collection("chapters").stream():

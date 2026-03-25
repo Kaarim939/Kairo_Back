@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from models.schemas import UpdateChapterMeta
-from models.schemas import CreateChapter
+from models.schemas import CreateChapter, UpdateChapterMeta
 from services.firebase import (
     create_chapter,
     get_chapter_meta,
