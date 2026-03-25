@@ -15,8 +15,15 @@ class AuthMiddleware(BaseHTTPMiddleware):
     matching the AUTH_CODE env variable.
     """
 
+    # Paths that use their own auth (Firebase tokens, OAuth callbacks)
+    EXEMPT_PREFIXES = ("/api/auth/",)
+
     async def dispatch(self, request: Request, call_next):
         if request.method in SAFE_METHODS:
+            return await call_next(request)
+
+        # Skip code-based auth for user auth endpoints
+        if any(request.url.path.startswith(p) for p in self.EXEMPT_PREFIXES):
             return await call_next(request)
 
         auth_code = os.getenv("AUTH_CODE", "password123")
