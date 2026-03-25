@@ -80,7 +80,8 @@ class Page(BaseModel):
 
 class Chapter(BaseModel):
     id: int
-    title: str = Field(max_length=200)
+    number: float = Field(gt=0)
+    name: str = Field(max_length=200)
     free: bool
     pageWidth: float = Field(gt=0)
     pageHeight: float = Field(gt=0)
@@ -101,7 +102,8 @@ class Chapter(BaseModel):
 class ChapterMeta(BaseModel):
     """Chapter without pages — for book listing."""
     id: int
-    title: str
+    number: float
+    name: str
     free: bool
     pageWidth: float
     pageHeight: float
@@ -140,7 +142,8 @@ class UpdatePage(BaseModel):
 
 class UpdateChapterMeta(BaseModel):
     """Update chapter metadata (not pages)."""
-    title: Optional[str] = Field(default=None, max_length=200)
+    number: Optional[float] = Field(default=None, gt=0)
+    name: Optional[str] = Field(default=None, max_length=200)
     free: Optional[bool] = None
     pageWidth: Optional[float] = Field(default=None, gt=0)
     pageHeight: Optional[float] = Field(default=None, gt=0)
