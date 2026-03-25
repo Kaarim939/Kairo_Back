@@ -1,12 +1,23 @@
 from fastapi import APIRouter, HTTPException
 from models.schemas import UpdateChapterMeta
+from models.schemas import CreateChapter
 from services.firebase import (
+    create_chapter,
     get_chapter_meta,
     get_chapter_pages,
     update_chapter_meta,
 )
 
 router = APIRouter(prefix="/books/{book_id}/chapters", tags=["chapters"])
+
+
+@router.post("")
+def post_chapter(book_id: str, data: CreateChapter):
+    """Create a new empty chapter."""
+    chapter_id = create_chapter(book_id, data.model_dump())
+    if chapter_id is None:
+        raise HTTPException(status_code=404, detail="Book not found")
+    return {"ok": True, "id": chapter_id}
 
 
 @router.get("/{chapter_id}")

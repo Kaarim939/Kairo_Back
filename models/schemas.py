@@ -161,6 +161,13 @@ class UpdateChapterMeta(BaseModel):
         return v
 
 
+class CreateChapter(BaseModel):
+    """Create a new empty chapter."""
+    number: float = Field(gt=0)
+    name: str = Field(max_length=200)
+    free: bool = False
+
+
 class UpdateBook(BaseModel):
     """Update book metadata."""
     title: Optional[str] = Field(default=None, max_length=200)

@@ -212,6 +212,29 @@ def update_page(book_id: str, chapter_id: int, page_id: str, data: dict) -> bool
     return True
 
 
+def create_chapter(book_id: str, data: dict) -> int | None:
+    """Create a new empty chapter. Returns the new chapter id."""
+    db = get_db()
+    book_ref = db.collection("books").document(book_id)
+    if not book_ref.get().exists:
+        return None
+    # Find next chapter id
+    existing = list(book_ref.collection("chapters").stream())
+    next_id = max((int(doc.id) for doc in existing), default=0) + 1
+    ch_data = {
+        "number": data.get("number", float(next_id)),
+        "name": data.get("name", ""),
+        "free": data.get("free", False),
+        "pageWidth": data.get("pageWidth", 800),
+        "pageHeight": data.get("pageHeight", 1200),
+        "fontSize": data.get("fontSize", 20),
+        "font": data.get("font", "Arial"),
+        "availableLanguages": data.get("availableLanguages", ["en"]),
+    }
+    book_ref.collection("chapters").document(str(next_id)).set(ch_data)
+    return next_id
+
+
 def upload_cover(book_id: str, file_bytes: bytes, content_type: str) -> str:
     """Upload a cover image to Firebase Storage and update the book's cover field."""
     db = get_db()  # Ensure Firebase app is initialized
