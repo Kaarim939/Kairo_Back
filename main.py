@@ -1,6 +1,8 @@
 import os
-from fastapi import FastAPI
+import httpx
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from dotenv import load_dotenv
 from routers import books, chapters, pages, imports
 from middleware.auth import AuthMiddleware
@@ -40,5 +42,15 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/api/image-proxy")
+async def image_proxy(url: str = Query(...)):
+    # Only allow proxying Firebase Storage URLs
+    if not url.startswith("https://storage.googleapis.com/") and not url.startswith("https://firebasestorage.googleapis.com/"):
+        return Response(status_code=403, content="Forbidden")
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(url)
+    return Response(content=resp.content, media_type=resp.headers.get("content-type", "image/png"))
 
 
