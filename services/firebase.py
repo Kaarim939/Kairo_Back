@@ -51,6 +51,8 @@ def get_all_books() -> list[dict]:
     for doc in db.collection("books").stream():
         book = doc.to_dict()
         book["id"] = doc.id
+        book.setdefault("visible", True)
+        book.setdefault("order", 0)
 
         # Get chapters metadata
         chapters = []
@@ -171,6 +173,24 @@ def get_chapter_meta(book_id: str, chapter_id: int) -> dict | None:
     ch = doc.to_dict()
     ch["id"] = int(doc.id)
     return ch
+
+
+def create_book(book_id: str, data: dict) -> bool:
+    """Create a new book with placeholder data."""
+    db = get_db()
+    ref = db.collection("books").document(book_id)
+    if ref.get().exists:
+        return False
+    # Count existing books for default order
+    existing_count = len(list(db.collection("books").stream()))
+    ref.set({
+        "title": data.get("title", "New Book"),
+        "author": "Unknown",
+        "description": "",
+        "visible": True,
+        "order": existing_count,
+    })
+    return True
 
 
 def update_book(book_id: str, data: dict) -> bool:

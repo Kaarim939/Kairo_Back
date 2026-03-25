@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File
-from models.schemas import UpdateBook
-from services.firebase import get_all_books, get_book, update_book, upload_cover
+from models.schemas import CreateBook, UpdateBook
+from services.firebase import create_book, get_all_books, get_book, update_book, upload_cover
 
 router = APIRouter(prefix="/books", tags=["books"])
 
@@ -9,6 +9,14 @@ router = APIRouter(prefix="/books", tags=["books"])
 def list_books():
     """List all books with chapter metadata (no pages)."""
     return get_all_books()
+
+
+@router.post("")
+def post_book(data: CreateBook):
+    """Create a new book with placeholder data."""
+    if not create_book(data.id, data.model_dump()):
+        raise HTTPException(status_code=409, detail="Book ID already exists")
+    return {"ok": True, "id": data.id}
 
 
 @router.get("/{book_id}")

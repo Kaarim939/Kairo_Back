@@ -128,6 +128,8 @@ class BookSummary(BaseModel):
     author: str
     description: str
     cover: str
+    visible: bool = True
+    order: int = 0
     chapters: list[ChapterMeta]
 
 
@@ -168,8 +170,16 @@ class CreateChapter(BaseModel):
     free: bool = False
 
 
+class CreateBook(BaseModel):
+    """Create a new book with placeholder data."""
+    id: str = Field(max_length=100, pattern=r'^[a-z0-9-]+$')
+    title: str = Field(max_length=200)
+
+
 class UpdateBook(BaseModel):
     """Update book metadata."""
     title: Optional[str] = Field(default=None, max_length=200)
     author: Optional[str] = Field(default=None, max_length=200)
     description: Optional[str] = Field(default=None, max_length=5000)
+    visible: Optional[bool] = None
+    order: Optional[int] = None
