@@ -214,13 +214,13 @@ def update_page(book_id: str, chapter_id: int, page_id: str, data: dict) -> bool
 
 def upload_cover(book_id: str, file_bytes: bytes, content_type: str) -> str:
     """Upload a cover image to Firebase Storage and update the book's cover field."""
+    db = get_db()  # Ensure Firebase app is initialized
     bucket = storage.bucket()
-    blob = bucket.blob(f"mangas/{book_id}/cover")
+    ext = content_type.split("/")[-1] if "/" in content_type else "png"
+    blob = bucket.blob(f"mangas/{book_id}/cover.{ext}")
     blob.upload_from_string(file_bytes, content_type=content_type)
     blob.make_public()
     url = blob.public_url
-    # Save cover URL in Firestore
-    db = get_db()
     db.collection("books").document(book_id).update({"cover": url})
     return url
 
