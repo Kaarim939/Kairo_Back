@@ -7,6 +7,7 @@ from services.firebase import (
     delete_page,
     reorder_pages,
     upload_page_image,
+    replace_page_image,
 )
 
 router = APIRouter(
@@ -43,6 +44,19 @@ def delete_page_endpoint(book_id: str, chapter_id: int, page_id: str):
     if result is True:
         return {"ok": True}
     raise HTTPException(status_code=400, detail=result)
+
+
+@router.post("/{page_id}/image")
+async def replace_page_image_endpoint(
+    book_id: str, chapter_id: int, page_id: str, file: UploadFile = File(...)
+):
+    """Replace only the source image of an existing page. Panels and texts are preserved."""
+    contents = await file.read()
+    content_type = file.content_type or "image/png"
+    image_url = replace_page_image(book_id, chapter_id, page_id, contents, content_type)
+    if image_url is None:
+        raise HTTPException(status_code=404, detail="Page not found")
+    return {"ok": True, "imageUrl": image_url}
 
 
 @router.post("/reorder")

@@ -415,6 +415,26 @@ def upload_page_image(book_id: str, chapter_id: int, file_bytes: bytes, content_
     return blob.public_url
 
 
+def replace_page_image(
+    book_id: str, chapter_id: int, page_id: str, file_bytes: bytes, content_type: str
+) -> str | None:
+    """Replace only the imageUrl of an existing page. Panels and texts are untouched."""
+    db = get_db()
+    ref = (
+        db.collection("books")
+        .document(book_id)
+        .collection("chapters")
+        .document(str(chapter_id))
+        .collection("pages")
+        .document(page_id)
+    )
+    if not ref.get().exists:
+        return None
+    image_url = upload_page_image(book_id, chapter_id, file_bytes, content_type)
+    ref.update({"imageUrl": image_url})
+    return image_url
+
+
 def import_book_json(book_data: dict) -> str:
     """Import a full book from JSON (with chapters and pages)."""
     db = get_db()
