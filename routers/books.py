@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from models.schemas import CreateBook, UpdateBook
-from services.firebase import create_book, get_all_books, get_book, update_book, upload_cover
+from services.firebase import create_book, get_all_books, get_book, update_book, upload_asset, upload_cover
 
 router = APIRouter(prefix="/books", tags=["books"])
 
@@ -49,3 +49,21 @@ async def upload_book_cover(book_id: str, file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="File too large (max 10MB)")
     url = upload_cover(book_id, contents, file.content_type)
     return {"ok": True, "cover": url}
+
+
+@router.post("/{book_id}/assets")
+async def upload_book_asset(book_id: str, file: UploadFile = File(...)):
+    """Upload a generic image asset (volume cover, character portrait) for a book.
+
+    Returns the public URL — caller is responsible for wiring it into volumes/characters
+    via the regular PATCH /books/{id} endpoint.
+    """
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+    contents = await file.read()
+    if len(contents) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large (max 10MB)")
+    url = upload_asset(book_id, contents, file.content_type)
+    if url is None:
+        raise HTTPException(status_code=404, detail="Book not found")
+    return {"ok": True, "url": url}

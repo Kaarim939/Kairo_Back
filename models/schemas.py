@@ -119,12 +119,32 @@ class ChapterMeta(BaseModel):
     pageCount: int
 
 
+class Volume(BaseModel):
+    id: str = Field(max_length=100)
+    number: float = Field(gt=0)
+    name: LocalizedStr
+    summary: LocalizedStr
+    cover: str = Field(default="", max_length=500)
+    chapters: list[int] = Field(default_factory=list)
+
+
+class Character(BaseModel):
+    id: str = Field(max_length=100)
+    name: LocalizedStr
+    description: LocalizedStr
+    image: str = Field(default="", max_length=500)
+    nickname: Optional[LocalizedStr] = None
+    team: Optional[LocalizedStr] = None
+
+
 class Book(BaseModel):
     id: str = Field(max_length=100, pattern=r'^[a-z0-9-]+$')
     title: LocalizedStr
     author: str = Field(max_length=200)
     description: LocalizedStr
     chapters: list[Chapter]
+    volumes: Optional[list[Volume]] = None
+    characters: Optional[list[Character]] = None
 
 
 class BookSummary(BaseModel):
@@ -137,6 +157,8 @@ class BookSummary(BaseModel):
     visible: bool = True
     order: int = 0
     chapters: list[ChapterMeta]
+    volumes: Optional[list[Volume]] = None
+    characters: Optional[list[Character]] = None
 
 
 # --- Update models (partial, for optimized saves) ---
@@ -193,3 +215,5 @@ class UpdateBook(BaseModel):
     description: Optional[LocalizedStr] = None
     visible: Optional[bool] = None
     order: Optional[int] = None
+    volumes: Optional[list[Volume]] = None
+    characters: Optional[list[Character]] = None

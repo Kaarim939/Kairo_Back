@@ -402,6 +402,24 @@ def reorder_pages(book_id: str, chapter_id: int, page_orders: list[dict]) -> boo
     return True
 
 
+def upload_asset(book_id: str, file_bytes: bytes, content_type: str) -> str | None:
+    """Upload a generic asset (volume cover, character portrait) for a book and return the public URL.
+
+    Returns None if the book does not exist. Does not mutate the book document — the URL is wired
+    into volumes/characters via the regular book PATCH path.
+    """
+    db = get_db()
+    if not db.collection("books").document(book_id).get().exists:
+        return None
+    bucket = storage.bucket()
+    ext = content_type.split("/")[-1] if "/" in content_type else "png"
+    filename = f"{uuid.uuid4().hex[:12]}.{ext}"
+    blob = bucket.blob(f"mangas/{book_id}/assets/{filename}")
+    blob.upload_from_string(file_bytes, content_type=content_type)
+    blob.make_public()
+    return blob.public_url
+
+
 def upload_page_image(book_id: str, chapter_id: int, file_bytes: bytes, content_type: str) -> str:
     """Upload a page image to Firebase Storage and return the public URL."""
     import uuid as _uuid
