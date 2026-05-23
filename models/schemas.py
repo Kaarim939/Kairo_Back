@@ -8,7 +8,7 @@ ALLOWED_ANIMATIONS = [
 
 ALLOWED_ALIGNS = ["left", "center", "right"]
 
-ALLOWED_LANGUAGES = ["en", "fr", "es", "ja"]
+ALLOWED_LANGUAGES = ["en", "fr", "es", "pt", "ar", "ko", "ja"]
 
 UI_LANGUAGES = ["en", "fr", "es"]
 
