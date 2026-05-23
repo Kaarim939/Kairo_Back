@@ -82,6 +82,7 @@ class Page(BaseModel):
     panels: list[Panel]
     width: Optional[float] = Field(default=None, gt=0)
     height: Optional[float] = Field(default=None, gt=0)
+    ostId: Optional[str] = Field(default=None, max_length=100)
 
 
 class Chapter(BaseModel):
@@ -168,6 +169,7 @@ class UpdatePage(BaseModel):
     panels: Optional[list[Panel]] = None
     width: Optional[float] = Field(default=None, gt=0)
     height: Optional[float] = Field(default=None, gt=0)
+    ostId: Optional[str] = Field(default=None, max_length=100)
 
 
 class UpdateChapterMeta(BaseModel):
@@ -217,3 +219,30 @@ class UpdateBook(BaseModel):
     order: Optional[int] = None
     volumes: Optional[list[Volume]] = None
     characters: Optional[list[Character]] = None
+
+
+class OSTRecord(BaseModel):
+    """A single OST (background music track) in the global library."""
+    id: str
+    name: str = Field(max_length=200)
+    origin: str = Field(default="", max_length=200)
+    tags: list[str] = Field(default_factory=list)
+    duration: float = Field(ge=0, le=36000)
+    url: str = Field(max_length=500)
+    createdAt: Optional[str] = None
+
+
+class CreateOSTMeta(BaseModel):
+    """Form-fields portion of the multipart OST upload."""
+    name: str = Field(max_length=200)
+    origin: str = Field(default="", max_length=200)
+    tags: list[str] = Field(default_factory=list)
+    duration: float = Field(ge=0, le=36000)
+
+
+class UpdateOSTMeta(BaseModel):
+    """Partial update for OST metadata. The audio file is NOT replaceable here."""
+    name: Optional[str] = Field(default=None, max_length=200)
+    origin: Optional[str] = Field(default=None, max_length=200)
+    tags: Optional[list[str]] = None
+    duration: Optional[float] = Field(default=None, ge=0, le=36000)
