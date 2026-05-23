@@ -29,6 +29,7 @@ def create_user_profile(uid: str, username: str, email: str) -> dict:
         "email": email,
         "patreonId": None,
         "patreonActive": False,
+        "isAdmin": False,
     }
     db.collection("users").document(uid).set(profile)
     return {**profile, "uid": uid}
