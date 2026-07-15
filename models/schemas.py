@@ -79,6 +79,7 @@ class Page(BaseModel):
     id: str = Field(max_length=100)
     pageNumber: int = Field(gt=0)
     imageUrl: str = Field(max_length=500)
+    coloredImageUrl: Optional[str] = Field(default=None, max_length=500)
     panels: list[Panel]
     width: Optional[float] = Field(default=None, gt=0)
     height: Optional[float] = Field(default=None, gt=0)
@@ -95,6 +96,7 @@ class Chapter(BaseModel):
     fontSize: float = Field(gt=0, le=200)
     font: str = Field(max_length=100)
     availableLanguages: list[str]
+    hasColored: bool = False
     pages: list[Page]
 
     @field_validator("availableLanguages")
@@ -117,6 +119,7 @@ class ChapterMeta(BaseModel):
     fontSize: float
     font: str
     availableLanguages: list[str]
+    hasColored: bool = False
     pageCount: int
 
 
@@ -182,6 +185,7 @@ class UpdateChapterMeta(BaseModel):
     fontSize: Optional[float] = Field(default=None, gt=0, le=200)
     font: Optional[str] = Field(default=None, max_length=100)
     availableLanguages: Optional[list[str]] = None
+    hasColored: Optional[bool] = None
 
     @field_validator("availableLanguages")
     @classmethod

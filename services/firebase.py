@@ -65,6 +65,7 @@ def _normalize_book(book: dict) -> dict:
 def _normalize_chapter(ch: dict) -> dict:
     """Ensure chapter has localized name."""
     ch["name"] = _to_localized(ch.get("name", ch.get("title", "")))
+    ch.setdefault("hasColored", False)
     return ch
 
 
@@ -451,6 +452,46 @@ def replace_page_image(
     image_url = upload_page_image(book_id, chapter_id, file_bytes, content_type)
     ref.update({"imageUrl": image_url})
     return image_url
+
+
+def set_colored_page_image(
+    book_id: str, chapter_id: int, page_id: str, file_bytes: bytes, content_type: str
+) -> str | None:
+    """Upload/replace the colored variant image of an existing page.
+
+    Panels and texts are shared with the normal image and left untouched.
+    """
+    db = get_db()
+    ref = (
+        db.collection("books")
+        .document(book_id)
+        .collection("chapters")
+        .document(str(chapter_id))
+        .collection("pages")
+        .document(page_id)
+    )
+    if not ref.get().exists:
+        return None
+    image_url = upload_page_image(book_id, chapter_id, file_bytes, content_type)
+    ref.update({"coloredImageUrl": image_url})
+    return image_url
+
+
+def remove_colored_page_image(book_id: str, chapter_id: int, page_id: str) -> bool:
+    """Clear the colored variant of a page (falls back to the normal image)."""
+    db = get_db()
+    ref = (
+        db.collection("books")
+        .document(book_id)
+        .collection("chapters")
+        .document(str(chapter_id))
+        .collection("pages")
+        .document(page_id)
+    )
+    if not ref.get().exists:
+        return False
+    ref.update({"coloredImageUrl": None})
+    return True
 
 
 def import_book_json(book_data: dict) -> str:

@@ -8,6 +8,8 @@ from services.firebase import (
     reorder_pages,
     upload_page_image,
     replace_page_image,
+    set_colored_page_image,
+    remove_colored_page_image,
 )
 
 router = APIRouter(
@@ -57,6 +59,27 @@ async def replace_page_image_endpoint(
     if image_url is None:
         raise HTTPException(status_code=404, detail="Page not found")
     return {"ok": True, "imageUrl": image_url}
+
+
+@router.post("/{page_id}/colored-image")
+async def set_colored_image_endpoint(
+    book_id: str, chapter_id: int, page_id: str, file: UploadFile = File(...)
+):
+    """Upload/replace the colored variant image of a page. Panels are shared and preserved."""
+    contents = await file.read()
+    content_type = file.content_type or "image/png"
+    image_url = set_colored_page_image(book_id, chapter_id, page_id, contents, content_type)
+    if image_url is None:
+        raise HTTPException(status_code=404, detail="Page not found")
+    return {"ok": True, "coloredImageUrl": image_url}
+
+
+@router.delete("/{page_id}/colored-image")
+def remove_colored_image_endpoint(book_id: str, chapter_id: int, page_id: str):
+    """Remove the colored variant of a page (reader falls back to the normal image)."""
+    if not remove_colored_page_image(book_id, chapter_id, page_id):
+        raise HTTPException(status_code=404, detail="Page not found")
+    return {"ok": True}
 
 
 @router.post("/reorder")
