@@ -4,7 +4,7 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from dotenv import load_dotenv
-from routers import books, chapters, pages, imports, user_auth, patreon, osts
+from routers import books, chapters, pages, imports, user_auth, patreon, osts, authors
 from middleware.auth import AuthMiddleware
 
 load_dotenv()
@@ -34,6 +34,7 @@ app.include_router(pages.router, prefix="/api")
 app.include_router(imports.router, prefix="/api")
 app.include_router(user_auth.router, prefix="/api")
 app.include_router(patreon.router, prefix="/api")
+app.include_router(authors.router, prefix="/api")
 app.include_router(osts.router, prefix="/api")
 
 

@@ -166,11 +166,52 @@ class Character(BaseModel):
     team: Optional[LocalizedStr] = None
 
 
+class AuthorLink(BaseModel):
+    """An external profile: label plus URL."""
+    label: str = Field(max_length=60)
+    url: str = Field(max_length=500)
+
+
+class Author(BaseModel):
+    """A creator, and the Patreon campaign that unlocks their paid chapters."""
+    id: str = Field(max_length=100, pattern=r'^[a-z0-9-]+$')
+    name: str = Field(max_length=200)
+    bio: LocalizedStr = Field(default_factory=dict)
+    avatar: str = Field(default="", max_length=500)
+    # Readers who actively back this campaign can read every chapter of every
+    # book by this author, including the ones not marked free.
+    patreonCampaignId: Optional[str] = Field(default=None, max_length=100)
+    patreonUrl: Optional[str] = Field(default=None, max_length=500)
+    links: list[AuthorLink] = Field(default_factory=list)
+
+
+class CreateAuthor(BaseModel):
+    id: str = Field(max_length=100, pattern=r'^[a-z0-9-]+$')
+    name: str = Field(max_length=200)
+
+
+class UpdateAuthor(BaseModel):
+    name: Optional[str] = Field(default=None, max_length=200)
+    bio: Optional[LocalizedStr] = None
+    avatar: Optional[str] = Field(default=None, max_length=500)
+    patreonCampaignId: Optional[str] = Field(default=None, max_length=100)
+    patreonUrl: Optional[str] = Field(default=None, max_length=500)
+    links: Optional[list[AuthorLink]] = None
+
+
 class Book(BaseModel):
     id: str = Field(max_length=100, pattern=r'^[a-z0-9-]+$')
     title: LocalizedStr
     author: str = Field(max_length=200)
+    authorId: Optional[str] = Field(default=None, max_length=100)
     description: LocalizedStr
+    # Patreon campaign of this book's author. A reader who actively backs it
+    # can read every chapter, including the ones not marked free.
+    #
+    # Held on the book rather than on a separate Author record: with one author
+    # per book this is the same information with far less machinery, and it
+    # promotes to an Author entity later without changing how access is checked.
+    patreonCampaignId: Optional[str] = Field(default=None, max_length=100)
     chapters: list[Chapter]
     volumes: Optional[list[Volume]] = None
     characters: Optional[list[Character]] = None
@@ -181,8 +222,16 @@ class BookSummary(BaseModel):
     id: str
     title: LocalizedStr
     author: str
+    authorId: Optional[str] = Field(default=None, max_length=100)
     description: LocalizedStr
     cover: str
+    # Patreon campaign of this book's author. A reader who actively backs it
+    # can read every chapter, including the ones not marked free.
+    #
+    # Held on the book rather than on a separate Author record: with one author
+    # per book this is the same information with far less machinery, and it
+    # promotes to an Author entity later without changing how access is checked.
+    patreonCampaignId: Optional[str] = Field(default=None, max_length=100)
     visible: bool = True
     order: int = 0
     chapters: list[ChapterMeta]
@@ -243,6 +292,8 @@ class UpdateBook(BaseModel):
     """Update book metadata."""
     title: Optional[LocalizedStr] = None
     author: Optional[str] = Field(default=None, max_length=200)
+    authorId: Optional[str] = Field(default=None, max_length=100)
+    patreonCampaignId: Optional[str] = Field(default=None, max_length=100)
     description: Optional[LocalizedStr] = None
     visible: Optional[bool] = None
     order: Optional[int] = None

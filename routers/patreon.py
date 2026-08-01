@@ -71,22 +71,34 @@ async def patreon_callback(code: str = Query(...), state: str = Query(...)):
     identity_data = identity_resp.json()
     patreon_id = identity_data.get("data", {}).get("id")
 
-    # Check if user is an active patron of OUR specific campaign
-    is_active = False
+    # Collect EVERY campaign this user actively backs.
+    #
+    # One OAuth link is enough for per-author access: the identity endpoint
+    # returns all of the user's memberships, so there is no need for a separate
+    # flow per author. We store the whole set and intersect it with each book's
+    # campaign at read time.
+    active_campaigns: list[str] = []
     for included in identity_data.get("included", []):
-        if included.get("type") == "member":
-            attrs = included.get("attributes", {})
-            # Check this membership is for our campaign
-            campaign_data = included.get("relationships", {}).get("campaign", {}).get("data", {})
-            campaign_id = campaign_data.get("id")
-            if campaign_id == PATREON_CAMPAIGN_ID and attrs.get("patron_status") == "active_patron":
-                is_active = True
-                break
+        if included.get("type") != "member":
+            continue
+        attrs = included.get("attributes", {})
+        if attrs.get("patron_status") != "active_patron":
+            continue
+        campaign_data = (
+            included.get("relationships", {}).get("campaign", {}).get("data", {})
+        )
+        campaign_id = campaign_data.get("id")
+        if campaign_id and campaign_id not in active_campaigns:
+            active_campaigns.append(campaign_id)
+
+    # Coarse flag: backs the platform campaign, if one is configured.
+    is_active = bool(PATREON_CAMPAIGN_ID) and PATREON_CAMPAIGN_ID in active_campaigns
 
     # Update user profile
     update_user_profile(uid, {
         "patreonId": patreon_id,
         "patreonActive": is_active,
+        "patreonCampaigns": active_campaigns,
     })
 
     return RedirectResponse(url=f"{FRONTEND_URL}?patreon={'linked' if is_active else 'inactive'}")

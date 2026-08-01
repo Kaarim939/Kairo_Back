@@ -28,7 +28,12 @@ def create_user_profile(uid: str, username: str, email: str) -> dict:
         "username": username,
         "email": email,
         "patreonId": None,
+        # Kept as "backs at least one campaign we know about", for anything
+        # that only needs a coarse answer.
         "patreonActive": False,
+        # Every Patreon campaign this user actively backs. Access is per-author,
+        # so a single boolean cannot answer "subscribed to A but not B".
+        "patreonCampaigns": [],
         "isAdmin": False,
     }
     db.collection("users").document(uid).set(profile)
