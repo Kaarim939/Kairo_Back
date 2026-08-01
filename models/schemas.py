@@ -79,8 +79,10 @@ class Panel(BaseModel):
     ) -> list[list[Point]] | None:
         if v is not None:
             for poly in v:
-                if len(poly) != 4:
-                    raise ValueError("each overflow must have exactly 4 points")
+                if len(poly) < 3:
+                    raise ValueError("each overflow needs at least 3 points")
+                if len(poly) > 64:
+                    raise ValueError("each overflow allows at most 64 points")
         return v
 
     @field_validator("animation")
