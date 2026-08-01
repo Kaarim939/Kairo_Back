@@ -59,12 +59,28 @@ class Panel(BaseModel):
     points: Optional[list[Point]] = None
     texts: Optional[list[PanelText]] = None
     animation: Optional[str] = None
+    # Webtoon gutter below this panel, as a percentage of column width.
+    gapAfter: Optional[float] = Field(default=None, ge=0, le=200)
+    # Extra quads that belong to this panel but sit outside its bounds, for art
+    # that breaks the frame (a head, an arm, a sound effect).
+    overflows: Optional[list[list[Point]]] = None
 
     @field_validator("points")
     @classmethod
     def validate_points(cls, v: list[Point] | None) -> list[Point] | None:
         if v is not None and len(v) != 4:
             raise ValueError("points must have exactly 4 entries")
+        return v
+
+    @field_validator("overflows")
+    @classmethod
+    def validate_overflows(
+        cls, v: list[list[Point]] | None
+    ) -> list[list[Point]] | None:
+        if v is not None:
+            for poly in v:
+                if len(poly) != 4:
+                    raise ValueError("each overflow must have exactly 4 points")
         return v
 
     @field_validator("animation")
