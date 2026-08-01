@@ -50,6 +50,26 @@ class Point(BaseModel):
     y: float = Field(ge=0, le=1)
 
 
+class OverflowMask(BaseModel):
+    """A polygon attached to a panel, for art that breaks out of its frame.
+
+    Wrapped in an object rather than being a bare list of points because
+    Firestore forbids arrays whose elements are themselves arrays: a
+    `list[list[Point]]` is rejected at write time. An array of maps each
+    holding an array is allowed.
+    """
+    points: list[Point]
+
+    @field_validator("points")
+    @classmethod
+    def validate_mask_points(cls, v: list[Point]) -> list[Point]:
+        if len(v) < 3:
+            raise ValueError("an overflow mask needs at least 3 points")
+        if len(v) > 64:
+            raise ValueError("an overflow mask allows at most 64 points")
+        return v
+
+
 class Panel(BaseModel):
     id: str = Field(max_length=100)
     x: float = Field(ge=0, le=1)
@@ -61,28 +81,15 @@ class Panel(BaseModel):
     animation: Optional[str] = None
     # Webtoon gutter below this panel, as a percentage of column width.
     gapAfter: Optional[float] = Field(default=None, ge=0, le=200)
-    # Extra quads that belong to this panel but sit outside its bounds, for art
+    # Polygons belonging to this panel that sit outside its bounds, for art
     # that breaks the frame (a head, an arm, a sound effect).
-    overflows: Optional[list[list[Point]]] = None
+    overflows: Optional[list[OverflowMask]] = None
 
     @field_validator("points")
     @classmethod
     def validate_points(cls, v: list[Point] | None) -> list[Point] | None:
         if v is not None and len(v) != 4:
             raise ValueError("points must have exactly 4 entries")
-        return v
-
-    @field_validator("overflows")
-    @classmethod
-    def validate_overflows(
-        cls, v: list[list[Point]] | None
-    ) -> list[list[Point]] | None:
-        if v is not None:
-            for poly in v:
-                if len(poly) < 3:
-                    raise ValueError("each overflow needs at least 3 points")
-                if len(poly) > 64:
-                    raise ValueError("each overflow allows at most 64 points")
         return v
 
     @field_validator("animation")
